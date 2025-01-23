@@ -9,12 +9,20 @@ const Chat = () => {
   >([]);
   const [activePopover, setActivePopover] = useState<string | null>(null);
   const popoverRef = useRef<HTMLDivElement | null>(null);
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+
+  // Scroll to top when messages change
+  useEffect(() => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = 0;
+    }
+  }, [messages]);
 
   useEffect(() => {
     const handlePreviousMessages = (
       data: Array<{ message: string; _id: string }>
     ) => {
-      setMessages(data);
+      setMessages(data.reverse());
     };
     socket?.on("previous-messages", handlePreviousMessages);
     socket?.on("client-path", handlePreviousMessages);
@@ -24,25 +32,11 @@ const Chat = () => {
     };
   }, []);
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        popoverRef.current &&
-        !popoverRef.current.contains(event.target as Node)
-      ) {
-        setActivePopover(null);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
-
   const handleSendMessage = () => {
-    socket?.emit("create-message", { message });
-    setMessage("");
+    if (message.trim()) {
+      socket?.emit("create-message", { message });
+      setMessage("");
+    }
   };
 
   const handleDeleteMessage = (messageId: string) => {
@@ -66,7 +60,10 @@ const Chat = () => {
         <div className="text-gray-600 text-xl">...</div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-2">
+      <div
+        ref={messagesContainerRef}
+        className="flex-1 overflow-y-auto p-4 space-y-2 flex flex-col-reverse"
+      >
         {messages?.map((message) => (
           <div key={message._id} className="flex justify-end">
             <div className="relative max-w-[70%] p-2 bg-blue-500 text-white rounded-xl mb-2">
@@ -103,7 +100,7 @@ const Chat = () => {
 
       <div className="bg-white p-4 border-t border-gray-200 flex items-center space-x-2">
         <textarea
-          className="flex-1 p-2 border text-black border-gray-300 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="flex-1 p-2 border text-black border-gray-300 focus:border-white rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-400"
           placeholder="Type a message..."
           value={message}
           onChange={(e) => setMessage(e.target.value)}
@@ -111,7 +108,7 @@ const Chat = () => {
         />
         <IoMdSend
           className="cursor-pointer"
-          fill={message ? "#2b7fff" : "#2b7fffd1"}
+          fill={message.trim() ? "#2b7fff" : "#2b7fffd1"}
           size={40}
           onClick={handleSendMessage}
         />
