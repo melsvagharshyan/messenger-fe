@@ -1,6 +1,8 @@
 import { useEffect, useState, useRef } from "react";
 import { IoMdSend } from "react-icons/io";
 import { socket } from "./socket";
+import { CSSTransition, TransitionGroup } from "react-transition-group";
+import "./Chat.css"; // Import your animation styles
 
 const Chat = () => {
   const [message, setMessage] = useState("");
@@ -11,10 +13,10 @@ const Chat = () => {
   const popoverRef = useRef<HTMLDivElement | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
 
-  // Scroll to top when messages change
   useEffect(() => {
     if (messagesContainerRef.current) {
-      messagesContainerRef.current.scrollTop = 0;
+      messagesContainerRef.current.scrollTop =
+        messagesContainerRef.current.scrollHeight;
     }
   }, [messages]);
 
@@ -22,7 +24,7 @@ const Chat = () => {
     const handlePreviousMessages = (
       data: Array<{ message: string; _id: string }>
     ) => {
-      setMessages(data.reverse());
+      setMessages(data);
     };
     socket?.on("previous-messages", handlePreviousMessages);
     socket?.on("client-path", handlePreviousMessages);
@@ -34,12 +36,15 @@ const Chat = () => {
 
   const handleSendMessage = () => {
     if (message.trim()) {
+      const newMessage = { message, _id: Date.now().toString() };
+      setMessages((prev) => [newMessage, ...prev]);
       socket?.emit("create-message", { message });
       setMessage("");
     }
   };
 
   const handleDeleteMessage = (messageId: string) => {
+    setMessages((prev) => prev.filter((msg) => msg._id !== messageId));
     socket?.emit("delete-message", { messageId });
   };
 
@@ -62,40 +67,44 @@ const Chat = () => {
 
       <div
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto p-4 space-y-2 flex flex-col-reverse"
+        className="flex-1 overflow-y-auto p-4 space-y-2 flex flex-col"
       >
-        {messages?.map((message) => (
-          <div key={message._id} className="flex justify-end">
-            <div className="relative max-w-[70%] p-2 bg-blue-500 text-white rounded-xl mb-2">
-              <div className="flex justify-between items-center">
-                <span>{message.message}</span>
+        <TransitionGroup component={null}>
+          {messages?.map((message) => (
+            <CSSTransition key={message._id} timeout={300} classNames="message">
+              <div className="flex justify-end">
+                <div className="relative max-w-[70%] p-2 bg-blue-500 text-white rounded-xl mb-2">
+                  <div className="flex justify-between items-center">
+                    <span>{message.message}</span>
 
-                <div className="relative ml-2">
-                  <button
-                    className="text-white/70 hover:text-white cursor-pointer"
-                    onClick={() => togglePopover(message._id)}
-                  >
-                    ...
-                  </button>
-
-                  {activePopover === message._id && (
-                    <div
-                      ref={popoverRef}
-                      className="absolute right-0 w-48 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-10 p-1"
-                    >
-                      <div
-                        className="p-2 text-red-500 hover:bg-red-100 cursor-pointer rounded-lg"
-                        onClick={() => handleDeleteMessage(message._id)}
+                    <div className="relative ml-2">
+                      <button
+                        className="text-white/70 hover:text-white cursor-pointer"
+                        onClick={() => togglePopover(message._id)}
                       >
-                        Delete
-                      </div>
+                        ...
+                      </button>
+
+                      {activePopover === message._id && (
+                        <div
+                          ref={popoverRef}
+                          className="absolute right-0 w-48 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-10 p-1"
+                        >
+                          <div
+                            className="p-2 text-red-500 hover:bg-red-100 cursor-pointer rounded-lg"
+                            onClick={() => handleDeleteMessage(message._id)}
+                          >
+                            Delete
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
-        ))}
+            </CSSTransition>
+          ))}
+        </TransitionGroup>
       </div>
 
       <div className="bg-white p-4 border-t border-gray-200 flex items-center space-x-2">
