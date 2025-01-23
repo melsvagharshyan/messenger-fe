@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { HiOutlineDotsHorizontal } from "react-icons/hi";
 import { socket } from "./socket";
 
 const Chat = () => {
@@ -6,6 +7,14 @@ const Chat = () => {
   const [messages, setMessages] = useState<
     Array<{ message: string; _id: string }>
   >([]);
+  const [editMessage, setEditMessage] = useState<{
+    message: string;
+    _id: string;
+  } | null>(null);
+  const [activePopover, setActivePopover] = useState<string | null>(null); // Manage active popover state
+
+  // Ref to store the popover container
+  const popoverRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const handlePreviousMessages = (
@@ -21,9 +30,55 @@ const Chat = () => {
     };
   }, []);
 
+  useEffect(() => {
+    // Close popover when clicking outside of it
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        popoverRef.current &&
+        !popoverRef.current.contains(event.target as Node)
+      ) {
+        setActivePopover(null);
+      }
+    };
+
+    // Add event listener
+    document.addEventListener("mousedown", handleClickOutside);
+
+    // Cleanup the event listener
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   const handleSendMessage = () => {
-    socket?.emit("create-message", { message });
+    if (editMessage) {
+      // If we are editing an existing message, emit update event
+      socket?.emit("update-message", {
+        updatedMessage: { message },
+        messageId: editMessage._id,
+      });
+      setEditMessage(null); // Reset the edit mode
+    } else {
+      socket?.emit("create-message", { message });
+    }
     setMessage(""); // Clear the textarea after sending
+  };
+
+  const handleEditMessage = (messageToEdit: {
+    message: string;
+    _id: string;
+  }) => {
+    setEditMessage(messageToEdit);
+    setMessage(messageToEdit.message); // Set the message in the textarea for editing
+  };
+
+  const handleDeleteMessage = (messageId: string) => {
+    socket?.emit("delete-message", { messageId });
+  };
+
+  const togglePopover = (messageId: string) => {
+    // Toggle the visibility of the popover
+    setActivePopover(activePopover === messageId ? null : messageId);
   };
 
   return (
@@ -41,9 +96,42 @@ const Chat = () => {
         {messages?.map((message) => (
           <div
             key={message._id}
-            className="bg-blue-100 text-gray-800 p-3 rounded-md mb-2"
+            className="bg-blue-100 text-gray-800 p-3 rounded-md mb-2 relative"
           >
-            {message.message}
+            <div className="flex justify-between items-center">
+              <span>{message.message}</span>
+
+              {/* Popover trigger */}
+              <div className="relative">
+                <button
+                  className="text-gray-500 hover:text-gray-700 cursor-pointer"
+                  onClick={() => togglePopover(message._id)} // Open/close popover for the clicked message
+                >
+                  <HiOutlineDotsHorizontal />
+                </button>
+
+                {/* Popover Menu */}
+                {activePopover === message._id && (
+                  <div
+                    ref={popoverRef} // Attach ref to popover container
+                    className="absolute right-0 w-48 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-10"
+                  >
+                    <div
+                      className="p-2 text-gray-700 hover:bg-gray-100 cursor-pointer"
+                      onClick={() => handleEditMessage(message)}
+                    >
+                      Edit
+                    </div>
+                    <div
+                      className="p-2 text-red-500 hover:bg-red-100 cursor-pointer"
+                      onClick={() => handleDeleteMessage(message._id)}
+                    >
+                      Delete
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         ))}
       </div>
@@ -60,7 +148,7 @@ const Chat = () => {
           onClick={handleSendMessage}
           className="px-4 py-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 transition"
         >
-          Send
+          {editMessage ? "Update" : "Send"}
         </button>
       </div>
     </div>
