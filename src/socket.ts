@@ -1,5 +1,5 @@
 import { io, Socket } from "socket.io-client";
 
-export const socket: Socket = io(
-  "https://messenger-be-production.up.railway.app"
-);
+const apiKey = import.meta.env.VITE_SOCKET_URL;
+
+export const socket: Socket = io(apiKey);
