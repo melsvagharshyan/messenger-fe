@@ -111,7 +111,7 @@ const Chat = () => {
         />
         <IoMdSend
           className="cursor-pointer"
-          fill="#2b7fff"
+          fill={message ? "#2b7fff" : "#2b7fffd1"}
           size={40}
           onClick={handleSendMessage}
         />
