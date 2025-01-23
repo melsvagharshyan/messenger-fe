@@ -41,7 +41,6 @@ const Chat = () => {
       }
     };
 
-    // Add event listener
     document.addEventListener("mousedown", handleClickOutside);
 
     // Cleanup the event listener
